@@ -1,12 +1,13 @@
 import telebot
-from flask import Flask, request
+from flask import Flask
 import logging
+import threading
+import time
 
 # --------------------
 # Налаштування
 # --------------------
 BOT_TOKEN = "8243222112:AAGL6uhM2S7ZEg2DAWtyKqH5Yq5rFdZXOx8"
-WEBHOOK_URL = f"https://pump-scanner-bot.onrender.com/{BOT_TOKEN}"
 
 # --------------------
 # Логи
@@ -45,22 +46,31 @@ def handle_buttons(message):
         bot.send_message(message.chat.id, "Я не розумію цю команду 😅")
 
 # --------------------
-# Flask webhook
-# --------------------
-@app.route(f'/{BOT_TOKEN}', methods=['POST'])
-def webhook():
-    json_str = request.get_data().decode('utf-8')
-    update = telebot.types.Update.de_json(json_str)
-    bot.process_new_updates([update])
-    return '', 200
-
-# --------------------
-# Головна сторінка
+# Flask головна сторінка
 # --------------------
 @app.route('/')
 def index():
     return "Bot is running ✅"
 
-# ❌ Для Render app.run не потрібен
-# if __name__ == "__main__":
-#     app.run(host="0.0.0.0", port=10000)
+# --------------------
+# Функція для polling
+# --------------------
+def polling():
+    while True:
+        try:
+            logging.info("Polling запущено...")
+            bot.infinity_polling(timeout=60)
+        except Exception as e:
+            logging.error(f"Помилка polling: {e}")
+            time.sleep(5)
+
+# --------------------
+# Старт сервера
+# --------------------
+if __name__ == "__main__":
+    # Запускаємо polling у окремому потоці
+    thread = threading.Thread(target=polling)
+    thread.start()
+    
+    # Запускаємо Flask
+    app.run(host="0.0.0.0", port=10000)
