@@ -1,6 +1,7 @@
 import os
 from flask import Flask, request
 from telegram_bot import bot
+from telebot.types import Update
 
 app = Flask(__name__)
 
@@ -12,15 +13,12 @@ if not BOT_TOKEN:
 def home():
     return "✅ PumpScannerReloaded alive!"
 
-from telebot.types import Update
-
 @app.route(f"/{BOT_TOKEN}", methods=["POST"])
 def webhook():
     json_string = request.data.decode("utf-8")
     update = Update.de_json(json_string)
     bot.process_new_updates([update])
     return "OK", 200
-
 
 @app.before_request
 def set_webhook():
@@ -39,4 +37,3 @@ def set_webhook():
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
-
