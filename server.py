@@ -40,7 +40,7 @@ def handle_buttons(message):
     elif message.text == '🔴 Вимкнути Сканер':
         bot.send_message(message.chat.id, "Сканер вимкнено ❌")
     elif message.text == '📊 Статистика':
-        bot.send_message(message.chat.id, "Статистика: ...")  # Твої дані тут
+        bot.send_message(message.chat.id, "Статистика: ...")
     else:
         bot.send_message(message.chat.id, "Я не розумію цю команду 😅")
 
@@ -61,10 +61,6 @@ def webhook():
 def index():
     return "Bot is running ✅"
 
-# --------------------
-# Старт сервера
-# --------------------
-if __name__ == "__main__":
-    bot.remove_webhook()
-    bot.set_webhook(url=WEBHOOK_URL)
-    app.run(host="0.0.0.0", port=10000)
+# ❌ Для Render app.run не потрібен
+# if __name__ == "__main__":
+#     app.run(host="0.0.0.0", port=10000)
