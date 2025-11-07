@@ -1,15 +1,15 @@
-import telebot
-from flask import Flask
-import threading
-import time
-import logging
 import os
 import json
+import logging
+import threading
+import time
+from flask import Flask
+import telebot
 from pump_scanner import start_user_scanner, stop_user_scanner, is_scanner_running, get_today_counts
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
 
-# Ініціалізація бота
+# --- Налаштування ---
 SETTINGS_PATH = "settings.json"
 
 def load_json(path):
@@ -28,6 +28,7 @@ BOT_TOKEN = os.getenv("BOT_TOKEN") or data.get("bot_token")
 bot = telebot.TeleBot(BOT_TOKEN)
 app = Flask(__name__)
 
+# --- Користувацькі налаштування ---
 def get_user_settings(chat_id):
     data = load_json(SETTINGS_PATH)
     key = str(chat_id)
@@ -41,6 +42,7 @@ def save_user_settings(chat_id, settings):
     data[str(chat_id)] = settings
     save_json(SETTINGS_PATH, data)
 
+# --- Меню ---
 def main_menu(chat_id):
     s = get_user_settings(chat_id)
     from telebot import types
@@ -52,6 +54,14 @@ def main_menu(chat_id):
     markup.add("📊 Статистика")
     return markup
 
+# --- Відправка повідомлень ---
+def send_message(chat_id, text):
+    try:
+        bot.send_message(chat_id, text)
+    except Exception as e:
+        logging.error(f"Помилка при відправці повідомлення {chat_id}: {text} | {e}")
+
+# --- Команди бота ---
 @bot.message_handler(commands=['start'])
 def on_start(m):
     bot.send_message(m.chat.id, "🚀 PumpScannerReloaded активний!", reply_markup=main_menu(m.chat.id))
@@ -70,7 +80,7 @@ def toggle_scanner(m):
         save_user_settings(chat_id, s)
         bot.send_message(chat_id, "✅ Оновлено стан сканера", reply_markup=main_menu(chat_id))
     except Exception as e:
-        print(e)
+        logging.error(e)
         bot.send_message(chat_id, "❌ Помилка при перемиканні сканера", reply_markup=main_menu(chat_id))
 
 @bot.message_handler(func=lambda m: m.text == "📊 Статистика")
@@ -79,16 +89,12 @@ def show_stats(m):
     lines = [f"{k}: {v}" for k, v in stats.items()]
     bot.send_message(m.chat.id, "📊 Статистика:\n" + "\n".join(lines), reply_markup=main_menu(m.chat.id))
 
-def send_message(chat_id, text):
-    try:
-        bot.send_message(chat_id, text)
-    except:
-        print(f"Помилка при відправці повідомлення {chat_id}: {text}")
-
-@app.route('/')
+# --- Flask просто для статусу ---
+@app.route("/")
 def index():
     return "Bot is running ✅"
 
+# --- Polling ---
 def polling():
     while True:
         try:
