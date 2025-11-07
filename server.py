@@ -1,20 +1,18 @@
 import telebot
 from flask import Flask
-import threading
 import time
 import logging
-import os
 import json
-from pump_scanner import start_user_scanner, stop_user_scanner, is_scanner_running, get_today_counts
+from pump_scanner import start_user_scanner, stop_user_scanner, get_today_counts
 
+# --------------------
 # Логи
+# --------------------
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
 
-# Ініціалізація
-BOT_TOKEN = os.getenv("BOT_TOKEN") or "8243222112:AAGL6uhM2S7ZEg2DAWtyKqH5Yq5rFdZXOx8"
-bot = telebot.TeleBot(BOT_TOKEN)
-app = Flask(__name__)
-
+# --------------------
+# Налаштування
+# --------------------
 SETTINGS_PATH = "settings.json"
 
 def load_json(path):
@@ -41,6 +39,15 @@ def save_user_settings(chat_id, settings):
     data[str(chat_id)] = settings
     save_json(SETTINGS_PATH, data)
 
+# --------------------
+# Telegram Bot
+# --------------------
+BOT_TOKEN = load_json(SETTINGS_PATH).get("bot_token")
+if not BOT_TOKEN:
+    raise ValueError("BOT_TOKEN не знайдено у settings.json")
+
+bot = telebot.TeleBot(BOT_TOKEN, parse_mode="HTML")
+
 def main_menu(chat_id):
     s = get_user_settings(chat_id)
     from telebot import types
@@ -52,7 +59,6 @@ def main_menu(chat_id):
     markup.add("📊 Статистика")
     return markup
 
-# Обробка команд і кнопок
 @bot.message_handler(commands=['start'])
 def on_start(m):
     bot.send_message(m.chat.id, "🚀 PumpScannerReloaded активний!", reply_markup=main_menu(m.chat.id))
@@ -71,7 +77,7 @@ def toggle_scanner(m):
         save_user_settings(chat_id, s)
         bot.send_message(chat_id, "✅ Оновлено стан сканера", reply_markup=main_menu(chat_id))
     except Exception as e:
-        print(e)
+        logging.error(e)
         bot.send_message(chat_id, "❌ Помилка при перемиканні сканера", reply_markup=main_menu(chat_id))
 
 @bot.message_handler(func=lambda m: m.text == "📊 Статистика")
@@ -84,15 +90,21 @@ def send_message(chat_id, text):
     try:
         bot.send_message(chat_id, text)
     except:
-        print(f"Помилка при відправці повідомлення {chat_id}: {text}")
+        logging.error(f"Помилка при відправці повідомлення {chat_id}: {text}")
 
-# Flask головна сторінка
+# --------------------
+# Flask для перевірки статусу
+# --------------------
+app = Flask(__name__)
+
 @app.route('/')
 def index():
     return "Bot is running ✅"
 
-# Polling у фоні
-def polling():
+# --------------------
+# Polling (головний процес)
+# --------------------
+def run_bot():
     while True:
         try:
             logging.info("Polling запущено...")
@@ -102,6 +114,4 @@ def polling():
             time.sleep(5)
 
 if __name__ == "__main__":
-    thread = threading.Thread(target=polling, daemon=True)
-    thread.start()
-    app.run(host="0.0.0.0", port=10000)
+    run_bot()
